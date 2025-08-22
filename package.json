@@ -1,0 +1,23 @@
+{
+  "name": "ai-terminal-ts",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@tsconfig/bun": "^1.0.8",
+    "@types/bun": "^1.2.20"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@clack/prompts": "1.0.0-alpha.1",
+    "ai": "^5.0.17",
+    "enquirer": "^2.4.1",
+    "keypress": "^0.2.1",
+    "zod": "^3.25.76"
+  },
+  "scripts": {
+    "dev-cli": "NODE_ENV=development bun run ./src/cli/index.ts"
+  }
+}
