@@ -20,33 +20,45 @@ const help = `Available commands:
   /clear     - Clear the console.
   /providers - List available providers.`;
 
+let isHandlingCommand = false;
+
 async function handleCommand(command: string) {
-  switch (command) {
-    case "quit":
-      outro(chalk.green("Goodbye!"));
-      process.exit(0);
-      break;
-    case "help":
-      console.log(
-        boxen(chalk.cyan(help), {
-          padding: 1,
-          margin: 1,
-          borderStyle: "round",
-          borderColor: "cyan",
-          backgroundColor: "#000",
-        })
-      );
-      break;
-    case "clear":
-      console.clear();
-      break;
-    case "providers":
-      await listProviders();
-      break;
+  if (isHandlingCommand) return;
+  isHandlingCommand = true;
+
+  try {
+    switch (command) {
+      case "quit":
+        outro(chalk.green("Goodbye!"));
+        process.exit(0);
+        break;
+      case "help":
+        console.log(
+          boxen(chalk.cyan(help), {
+            padding: 1,
+            margin: 1,
+            borderStyle: "round",
+            borderColor: "cyan",
+            backgroundColor: "#000",
+          })
+        );
+        break;
+      case "clear":
+        console.clear();
+        break;
+      case "providers":
+        await listProviders();
+        break;
+    }
+  } finally {
+    isHandlingCommand = false;
   }
 }
 
 async function showCommandAutocomplete(): Promise<string> {
+  if (isHandlingCommand) return "";
+  isHandlingCommand = true;
+
   try {
     const answer = await enquirer.autocomplete({
       name: "command",
@@ -65,61 +77,46 @@ async function showCommandAutocomplete(): Promise<string> {
   } catch (error) {
     // User cancelled the prompt
     return "";
+  } finally {
+    isHandlingCommand = false;
   }
 }
 
-// Custom real-time input handler with proper event management
-class RealTimeInputHandler {
-  private rl: readline.Interface;
-  private inputBuffer: string = "";
-  private isProcessingCommand: boolean = false;
+// Real-time input handler
+function setupRealTimeInput() {
+  let inputBuffer = "";
 
-  constructor() {
-    // Enable keypress events
-    readline.emitKeypressEvents(process.stdin);
-    if (process.stdin.isTTY) {
-      process.stdin.setRawMode(true);
-    }
-    process.stdin.setEncoding("utf8");
-
-    this.rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    // Handle keypress events
-    process.stdin.on("keypress", this.handleKeypress.bind(this));
+  // Enable keypress events
+  readline.emitKeypressEvents(process.stdin);
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
   }
+  process.stdin.setEncoding("utf8");
 
-  private async handleKeypress(char: string, key: any) {
-    // Prevent multiple concurrent command processing
-    if (this.isProcessingCommand) return;
+  // Keep process alive
+  process.stdin.resume();
+
+  process.stdin.on("keypress", async (char, key) => {
+    if (isHandlingCommand) return;
 
     // Handle Ctrl+C
     if (key && key.ctrl && key.name === "c") {
-      this.cleanup();
       process.exit(0);
     }
 
     // Handle Enter
     if (char === "\r") {
-      if (this.inputBuffer.startsWith("/")) {
-        // Process command
-        const command = this.inputBuffer.slice(1);
+      if (inputBuffer.startsWith("/")) {
+        const command = inputBuffer.slice(1);
         if (commandNames.includes(command)) {
-          this.isProcessingCommand = true;
           await handleCommand(command);
-          this.isProcessingCommand = false;
         } else if (command === "") {
           // Just "/" - show autocomplete
-          this.isProcessingCommand = true;
           const selectedCommand = await showCommandAutocomplete();
           if (selectedCommand && commandNames.includes(selectedCommand)) {
             await handleCommand(selectedCommand);
           }
-          this.isProcessingCommand = false;
         } else {
-          // Unknown command
           const errorMessage = boxen(
             chalk.red(`Unknown command: /${command}`),
             {
@@ -132,23 +129,19 @@ class RealTimeInputHandler {
           );
           console.log(errorMessage);
         }
-      } else if (this.inputBuffer.trim() !== "") {
-        // Process regular input
-        const message = boxen(
-          chalk.green(`-> Sending to AI: ${this.inputBuffer}`),
-          {
-            padding: 1,
-            margin: 1,
-            borderStyle: "round",
-            borderColor: "green",
-            backgroundColor: "#000",
-          }
-        );
+      } else if (inputBuffer.trim() !== "") {
+        const message = boxen(chalk.green(`-> Sending to AI: ${inputBuffer}`), {
+          padding: 1,
+          margin: 1,
+          borderStyle: "round",
+          borderColor: "green",
+          backgroundColor: "#000",
+        });
         console.log(message);
       }
 
       // Reset buffer and show prompt
-      this.inputBuffer = "";
+      inputBuffer = "";
       process.stdout.write("\n");
       process.stdout.write("you > ");
       return;
@@ -156,8 +149,8 @@ class RealTimeInputHandler {
 
     // Handle backspace
     if (char === "\u007F") {
-      if (this.inputBuffer.length > 0) {
-        this.inputBuffer = this.inputBuffer.slice(0, -1);
+      if (inputBuffer.length > 0) {
+        inputBuffer = inputBuffer.slice(0, -1);
         process.stdout.write("\b \b");
       }
       return;
@@ -165,37 +158,26 @@ class RealTimeInputHandler {
 
     // Handle regular characters
     if (char && char.length === 1) {
-      this.inputBuffer += char;
+      inputBuffer += char;
       process.stdout.write(char);
 
       // Show autocomplete immediately when user types "/"
-      if (this.inputBuffer === "/") {
-        this.isProcessingCommand = true;
+      if (inputBuffer === "/") {
         const selectedCommand = await showCommandAutocomplete();
         if (selectedCommand && commandNames.includes(selectedCommand)) {
           await handleCommand(selectedCommand);
         }
-        this.isProcessingCommand = false;
 
         // Reset buffer and show prompt
-        this.inputBuffer = "";
+        inputBuffer = "";
         process.stdout.write("\n");
         process.stdout.write("you > ");
       }
     }
-  }
+  });
 
-  public start() {
-    process.stdout.write("you > ");
-  }
-
-  private cleanup() {
-    this.rl.close();
-    if (process.stdin.isTTY) {
-      process.stdin.setRawMode(false);
-    }
-    process.stdin.removeAllListeners("keypress");
-  }
+  // Show initial prompt
+  process.stdout.write("you > ");
 }
 
 async function main() {
@@ -210,15 +192,18 @@ async function main() {
 
   console.log(header);
 
-  // Initialize real-time input handler
-  const inputHandler = new RealTimeInputHandler();
-  inputHandler.start();
-
-  // Keep the process alive
-  process.stdin.resume();
+  // Setup real-time input
+  setupRealTimeInput();
 }
 
-// Handle uncaught exceptions to prevent crashes
+// Handle process signals for graceful shutdown
+process.on("SIGINT", () => {
+  console.log("\n");
+  outro(chalk.green("Goodbye!"));
+  process.exit(0);
+});
+
+// Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
   console.error("Uncaught exception:", error);
 });
