@@ -1,9 +1,9 @@
-import enquirer from "enquirer";
+import enquirer from 'enquirer';
 
-console.log("Enquirer keys:", Object.keys(enquirer));
-console.log("Enquirer type:", typeof enquirer);
+console.log('Enquirer keys:', Object.keys(enquirer));
+console.log('Enquirer type:', typeof enquirer);
 if (typeof enquirer === 'function') {
-  console.log("Enquirer function length:", enquirer.length);
+  console.log('Enquirer function length:', enquirer.length);
 } else if (typeof enquirer === 'object') {
-  console.log("Enquirer properties:", Object.getOwnPropertyNames(enquirer));
+  console.log('Enquirer properties:', Object.getOwnPropertyNames(enquirer));
 }
