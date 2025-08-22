@@ -4,33 +4,46 @@ This document provides context for the Gemini code assistant to understand the `
 
 ## Project Overview
 
-`ai-terminal-ts` is a command-line interface (CLI) application for managing AI agents. It allows users to configure and interact with different Large Language Model (LLM) providers, manage multiple AI agents with distinct system prompts, and maintain session history.
+`ai-terminal-ts` is a project for managing and interacting with AI agents. It consists of a central server that manages the agents and their configurations, and multiple clients (CLI and web) that connect to the server to interact with the agents.
 
-The project is built with the following technologies:
+## Architecture
+
+The project is a monorepo with the following packages:
+
+*   **`packages/server`**: A Node.js server built with Hono and Socket.IO. It manages the AI agents, their configurations, and the communication with the LLM providers.
+*   **`packages/cli`**: A command-line interface (CLI) for interacting with the AI agents through the server.
+*   **`packages/web`**: A web-based interface for interacting with the AI agents in real-time.
+
+## Technologies
 
 *   **Runtime and Package Manager:** Bun
 *   **Language:** TypeScript
-*   **Data Validation:** Zod
-*   **CLI UI:** @clack/prompts
-
-The project's architecture is organized as follows:
-
-*   **`src/`**: Contains the source code for the CLI application.
-    *   **`src/cli/index.ts`**: The main entry point for the CLI.
-*   **`data/`**: Stores the application's data in JSON files.
-    *   **`data/config/providers.json`**: A list of LLM providers with their configurations.
-    *   **`data/config/agents.json`**: A list of AI agents, each with a specified provider and system prompt.
-    *   **`data/config/sessions.json`**: A history of user sessions with different agents.
-    *   **`data/config/stats.json`**: Usage statistics for agents and providers.
+*   **Server:**
+    *   **Framework:** Hono
+    *   **Real-time Communication:** Socket.IO
+*   **CLI:**
+    *   **UI:** @clack/prompts
+*   **Web:**
+    *   **Framework:** React
+    *   **Real-time Communication:** Socket.IO-client
 
 ## Building and Running
 
-To run the application in development mode, use the following command:
+To run the different parts of the application in development mode, use the following commands from the root directory:
 
-```bash
-bun run ./src/cli/index.ts
-```
+*   **Server:**
+    ```bash
+    bun run dev:server
+    ```
+*   **CLI:**
+    ```bash
+    bun run dev:cli
+    ```
+*   **Web:**
+    ```bash
+    bun run dev:web
+    ```
 
 ## Development Conventions
 
-The project uses TypeScript with strict type checking enabled. The code is formatted according to the default Prettier settings. All dependencies are managed using Bun.
+The project uses TypeScript with strict type checking enabled. The code is formatted according to the default Prettier settings. All dependencies are managed using Bun and workspaces.

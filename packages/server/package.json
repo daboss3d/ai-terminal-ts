@@ -1,0 +1,17 @@
+{
+  "name": "@ai-terminal-ts/server",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.11.2",
+    "hono": "^4.5.1",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.20"
+  }
+}
