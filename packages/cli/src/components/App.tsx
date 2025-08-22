@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Text, Box, useApp, useInput } from "ink";
 
 // Mock command definitions
@@ -35,6 +35,9 @@ const App = () => {
   const [output, setOutput] = useState<OutputLine[]>([]);
   const [streamingResponse, setStreamingResponse] = useState<StreamState | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+  const [filteredCommands, setFilteredCommands] = useState<typeof commands>(commands);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
 
   // Generate unique IDs for output lines
   const generateId = useCallback(() => {
@@ -126,6 +129,8 @@ const App = () => {
       if (isProcessing) return;
 
       setIsProcessing(true);
+      setShowCommandSuggestions(false);
+      setSelectedCommandIndex(0);
 
       try {
         if (input.startsWith("/")) {
@@ -165,14 +170,84 @@ const App = () => {
 
   // Handle keyboard input with Ink's useInput hook
   useInput((inputChar, key) => {
+    // Handle command selection when suggestions are shown
+    if (showCommandSuggestions) {
+      if (key.upArrow) {
+        setSelectedCommandIndex(prev => 
+          prev > 0 ? prev - 1 : filteredCommands.length - 1
+        );
+        return;
+      }
+      
+      if (key.downArrow) {
+        setSelectedCommandIndex(prev => 
+          prev < filteredCommands.length - 1 ? prev + 1 : 0
+        );
+        return;
+      }
+      
+      if (key.return) {
+        if (filteredCommands.length > 0) {
+          const selectedCommand = filteredCommands[selectedCommandIndex];
+          setInput("/" + selectedCommand.name);
+          setShowCommandSuggestions(false);
+          setSelectedCommandIndex(0);
+        }
+        return;
+      }
+      
+      if (key.escape) {
+        setShowCommandSuggestions(false);
+        setSelectedCommandIndex(0);
+        return;
+      }
+    }
+    
+    // Handle regular input
     if (key.escape || (key.ctrl && key.name === "c")) {
       exit();
     } else if (key.return) {
       processInput(input);
     } else if (key.backspace || key.delete) {
-      setInput((prev) => prev.slice(0, -1));
+      const newInput = input.slice(0, -1);
+      setInput(newInput);
+      
+      // Handle command suggestions
+      if (newInput === "/") {
+        setShowCommandSuggestions(true);
+        setFilteredCommands(commands);
+        setSelectedCommandIndex(0);
+      } else if (newInput.startsWith("/")) {
+        const filterText = newInput.slice(1);
+        const filtered = commands.filter(cmd => 
+          cmd.name.startsWith(filterText)
+        );
+        setFilteredCommands(filtered);
+        setSelectedCommandIndex(0);
+      } else {
+        setShowCommandSuggestions(false);
+        setSelectedCommandIndex(0);
+      }
     } else if (inputChar) {
-      setInput((prev) => prev + inputChar);
+      const newInput = input + inputChar;
+      setInput(newInput);
+      
+      // Handle command suggestions
+      if (newInput === "/") {
+        setShowCommandSuggestions(true);
+        setFilteredCommands(commands);
+        setSelectedCommandIndex(0);
+      } else if (newInput.startsWith("/")) {
+        const filterText = newInput.slice(1);
+        const filtered = commands.filter(cmd => 
+          cmd.name.startsWith(filterText)
+        );
+        setFilteredCommands(filtered);
+        setSelectedCommandIndex(0);
+      } else {
+        setShowCommandSuggestions(false);
+        setSelectedCommandIndex(0);
+      }
     }
   });
 
@@ -235,6 +310,45 @@ const App = () => {
               {streamingResponse.content}
               <Text color="gray">█</Text> {/* Cursor indicator */}
             </Text>
+          </Box>
+        </Box>
+      )}
+
+      {/* Display command suggestions with selection */}
+      {showCommandSuggestions && (
+        <Box flexDirection="column" marginTop={1}>
+          <Box>
+            <Text color="yellow">Available Commands:</Text>
+          </Box>
+          <Box 
+            borderStyle="round" 
+            borderColor="yellow" 
+            paddingX={1} 
+            paddingY={0}
+            flexDirection="column"
+          >
+            {filteredCommands.length > 0 ? (
+              filteredCommands.map((cmd, index) => (
+                <Box key={index} marginBottom={0}>
+                  {index === selectedCommandIndex ? (
+                    <Text color="yellow">
+                      <Text color="cyan">▶ </Text>
+                      {cmd.message}
+                    </Text>
+                  ) : (
+                    <Text color="yellow">
+                      <Text>  </Text>
+                      {cmd.message}
+                    </Text>
+                  )}
+                </Box>
+              ))
+            ) : (
+              <Text color="yellow">No matching commands found</Text>
+            )}
+          </Box>
+          <Box marginTop={0}>
+            <Text color="gray">↑↓ to navigate, ↵ to select, Esc to cancel</Text>
           </Box>
         </Box>
       )}
