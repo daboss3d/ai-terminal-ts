@@ -3,8 +3,21 @@ import enquirer from "enquirer";
 import chalk from "chalk";
 import boxen from "boxen";
 import readline from "readline";
-import { listProviders } from "../../../src/lib/providers-cli";
-import ansiEscapes from "ansi-escapes";
+
+import { sendMessageToServer } from "./server.ts";
+
+// Mock providers function for now
+async function listProviders() {
+  console.log(
+    boxen(chalk.cyan("Providers functionality would be implemented here"), {
+      padding: 1,
+      margin: 1,
+      borderStyle: "round",
+      borderColor: "cyan",
+      backgroundColor: "#000",
+    })
+  );
+}
 
 const commands = [
   { name: "quit", message: "/quit - Exit the application" },
@@ -21,7 +34,9 @@ const help = `Available commands:
   /clear     - Clear the console.
   /providers - List available providers.`;
 
+// Global state to track if we're handling a command
 let isHandlingCommand = false;
+let shouldExit = false;
 
 async function handleCommand(command: string) {
   if (isHandlingCommand) return;
@@ -31,7 +46,7 @@ async function handleCommand(command: string) {
     switch (command) {
       case "quit":
         outro(chalk.green("Goodbye!"));
-        process.exit(0);
+        shouldExit = true;
         break;
       case "help":
         console.log(
@@ -83,67 +98,6 @@ async function showCommandAutocomplete(): Promise<string> {
   }
 }
 
-import ansiEscapes from "ansi-escapes";
-
-async function sendMessageToServer(message: string) {
-  const response = await fetch("http://localhost:3001/prompts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ prompt: message }),
-  });
-
-  if (!response.body) {
-    return;
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-
-  let aiResponse = "";
-  const aiResponsePrefix = ")-> AI: ";
-
-  const createBox = (content) =>
-    boxen(chalk.green(content), {
-      padding: 1,
-      margin: 1,
-      borderStyle: "round",
-      borderColor: "green",
-      backgroundColor: "#000",
-    });
-
-  let firstChunk = true;
-  let boxLines = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      process.stdout.write("\n");
-      process.stdout.write("you > ");
-      break;
-    }
-    const chunk = decoder.decode(value, { stream: true });
-    aiResponse += chunk;
-
-    if (firstChunk) {
-      const initialBox = createBox(`${aiResponsePrefix}${aiResponse}`);
-      process.stdout.write(initialBox);
-      boxLines = initialBox.split("\n").length;
-      firstChunk = false;
-    } else {
-      process.stdout.write(ansiEscapes.cursorUp(boxLines));
-      process.stdout.write(ansiEscapes.eraseDown);
-      const newBox = createBox(`${aiResponsePrefix}${aiResponse}`);
-      process.stdout.write(newBox);
-      boxLines = newBox.split("\n").length;
-    }
-  }
-}
-
-// Promise that resolves when we want to exit
-let shouldExit = false;
-
 // Real-time input handler
 function setupRealTimeInput() {
   let inputBuffer = "";
@@ -156,7 +110,7 @@ function setupRealTimeInput() {
   process.stdin.setEncoding("utf8");
 
   process.stdin.on("keypress", async (char, key) => {
-    if (isHandlingCommand) return;
+    if (isHandlingCommand || shouldExit) return;
 
     // Handle Ctrl+C
     if (key && key.ctrl && key.name === "c") {
@@ -190,7 +144,16 @@ function setupRealTimeInput() {
           console.log(errorMessage);
         }
       } else if (inputBuffer.trim() !== "") {
-        await sendMessageToServer(inputBuffer);
+        const text = await sendMessageToServer(inputBuffer);
+        console.log(
+          boxen(chalk.green(`-> AI: ${text}`), {
+            padding: 1,
+            margin: 1,
+            borderStyle: "round",
+            borderColor: "green",
+            backgroundColor: "#000",
+          })
+        );
       }
 
       // Reset buffer and show prompt
@@ -247,6 +210,15 @@ async function main() {
 
   // Setup real-time input
   setupRealTimeInput();
+
+  // Keep the process alive
+  process.stdin.resume();
+
+  // Main loop to keep the application running
+  while (!shouldExit) {
+    // Small delay to prevent busy waiting
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
 }
 
 // Handle process signals for graceful shutdown

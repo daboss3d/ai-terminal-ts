@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Text, Box, render, useApp, useInput } from 'ink';
+import React, { useState, useCallback, useEffect } from "react";
+import { Text, Box, useApp, useInput } from "ink";
 
 // Mock command definitions
 const commands = [
   { name: "quit", message: "/quit - Exit the application" },
   { name: "help", message: "/help - Show this help message" },
   { name: "clear", message: "/clear - Clear the console" },
-  { name: "providers", message: "/providers - List available providers" }
+  { name: "providers", message: "/providers - List available providers" },
 ];
 
 const commandNames = ["quit", "help", "clear", "providers"];
@@ -20,179 +20,256 @@ const helpText = `Available commands:
 type OutputLine = {
   id: string;
   content: string;
-  type: 'message' | 'command' | 'error' | 'ai';
+  type: "message" | "command" | "error" | "ai";
 };
 
-interface AIResponseProps {
-  dataStream: ReadableStream | null;
-  onDone?: () => void;
-}
-
-// Mock AIResponse component for now
-const AIResponse: React.FC<AIResponseProps> = ({ dataStream, onDone }) => {
-  const [content, setContent] = useState('');
-
-  useEffect(() => {
-    if (!dataStream) return;
-
-    const reader = dataStream.getReader();
-    const decoder = new TextDecoder();
-
-    const read = async () => {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const text = decoder.decode(value);
-          setContent(prev => prev + text);
-        }
-      } finally {
-        reader.releaseLock();
-        onDone?.();
-      }
-    };
-
-    read();
-
-    return () => {
-      reader.cancel().catch(() => {});
-    };
-  }, [dataStream, onDone]);
-
-  return <Text color="green">{content}</Text>;
+type StreamState = {
+  id: string;
+  content: string;
+  isComplete: boolean;
 };
 
 const App = () => {
   const { exit } = useApp();
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [output, setOutput] = useState<OutputLine[]>([]);
+  const [streamingResponse, setStreamingResponse] = useState<StreamState | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [aiResponseStream, setAiResponseStream] = useState<ReadableStream | null>(null);
 
   // Generate unique IDs for output lines
   const generateId = useCallback(() => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  const addOutput = useCallback((content: string, type: OutputLine['type'] = 'message') => {
-    setOutput(prev => [...prev, { id: generateId(), content, type }]);
-  }, [generateId]);
+  const addOutput = useCallback(
+    (content: string, type: OutputLine["type"] = "message") => {
+      setOutput((prev) => [...prev, { id: generateId(), content, type }]);
+    },
+    [generateId]
+  );
 
-  const handleCommand = useCallback((command: string) => {
-    switch (command) {
-      case "quit":
-        exit();
-        break;
-      case "help":
-        addOutput(helpText, 'command');
-        break;
-      case "clear":
-        setOutput([]);
-        break;
-      case "providers":
-        addOutput("Providers functionality would be implemented here", 'command');
-        break;
-      default:
-        addOutput(`Unknown command: /${command}`, 'error');
-        break;
-    }
-  }, [addOutput, exit]);
+  const handleCommand = useCallback(
+    (command: string) => {
+      switch (command) {
+        case "quit":
+          exit();
+          break;
+        case "help":
+          addOutput(helpText, "command");
+          break;
+        case "clear":
+          setOutput([]);
+          break;
+        case "providers":
+          addOutput(
+            "Providers functionality would be implemented here",
+            "command"
+          );
+          break;
+        default:
+          addOutput(`Unknown command: /${command}`, "error");
+          break;
+      }
+    },
+    [addOutput, exit]
+  );
 
-  const processInput = useCallback(async (input: string) => {
-    if (isProcessing) return;
+  const processStreamingResponse = useCallback(async (response: Response) => {
+    const reader = response.body?.getReader();
+    if (!reader) return;
+
+    const decoder = new TextDecoder();
+    const streamId = generateId();
     
-    setIsProcessing(true);
-    
+    // Initialize streaming response
+    setStreamingResponse({
+      id: streamId,
+      content: "",
+      isComplete: false
+    });
+
     try {
-      if (input.startsWith("/")) {
-        const command = input.slice(1);
-        if (commandNames.includes(command)) {
-          handleCommand(command);
-        } else {
-          addOutput(`Unknown command: /${command}`, 'error');
-        }
-      } else if (input.trim() !== "") {
-        // Simulate sending to AI
-        addOutput(`-> Sending to AI: ${input}`);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
         
-        // Create a mock stream for demonstration
-        const mockStream = new ReadableStream({
-          start(controller) {
-            const text = "This is a mock AI response to your message: " + input;
-            controller.enqueue(new TextEncoder().encode(text));
-            controller.close();
-          }
-        });
-        
-        setAiResponseStream(mockStream);
+        // Update streaming response
+        setStreamingResponse(prev => prev ? {
+          ...prev,
+          content: prev.content + chunk
+        } : null);
       }
     } finally {
-      setInput('');
-      setIsProcessing(false);
+      // Mark stream as complete
+      setStreamingResponse(prev => prev ? {
+        ...prev,
+        isComplete: true
+      } : null);
+      
+      // Move completed stream to output
+      setStreamingResponse(prev => {
+        if (prev && prev.isComplete) {
+          addOutput(prev.content, "ai");
+          return null;
+        }
+        return prev;
+      });
+      
+      reader.releaseLock();
     }
-  }, [handleCommand, addOutput, isProcessing]);
+  }, [generateId, addOutput]);
 
-  // Handle keyboard input
-  useInput((input, key) => {
-    if (key.escape || (key.ctrl && key.name === 'c')) {
+  const processInput = useCallback(
+    async (input: string) => {
+      if (isProcessing) return;
+
+      setIsProcessing(true);
+
+      try {
+        if (input.startsWith("/")) {
+          const command = input.slice(1);
+          if (commandNames.includes(command)) {
+            handleCommand(command);
+          } else {
+            addOutput(`Unknown command: /${command}`, "error");
+          }
+        } else if (input.trim() !== "") {
+          addOutput(`-> Sending to AI: ${input}`, "message");
+
+          // Send to server with streaming enabled
+          const response = await fetch("http://localhost:3001/prompts", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ prompt: input, stream: true }),
+          });
+
+          if (response.body) {
+            await processStreamingResponse(response);
+          } else {
+            addOutput("No response body received", "error");
+          }
+        }
+      } catch (error) {
+        addOutput(`Error: ${error.message}`, "error");
+      } finally {
+        setInput("");
+        setIsProcessing(false);
+      }
+    },
+    [handleCommand, addOutput, isProcessing, processStreamingResponse]
+  );
+
+  // Handle keyboard input with Ink's useInput hook
+  useInput((inputChar, key) => {
+    if (key.escape || (key.ctrl && key.name === "c")) {
       exit();
-      return;
-    }
-
-    if (key.return) {
+    } else if (key.return) {
       processInput(input);
-      return;
-    }
-
-    if (key.backspace) {
-      setInput(prev => prev.slice(0, -1));
-      return;
-    }
-
-    if (input.length === 1) {
-      setInput(prev => prev + input);
+    } else if (key.backspace || key.delete) {
+      setInput((prev) => prev.slice(0, -1));
+    } else if (inputChar) {
+      setInput((prev) => prev + inputChar);
     }
   });
-
-  const handleAiDone = useCallback(() => {
-    setAiResponseStream(null);
-  }, []);
 
   return (
     <Box flexDirection="column">
       <Box justifyContent="center" marginBottom={1}>
-        <Text bold color="cyan">AI Terminal</Text>
-      </Box>
-      
-      {output.map((line) => (
-        <Text 
-          key={line.id} 
-          color={
-            line.type === 'error' ? 'red' : 
-            line.type === 'command' ? 'cyan' : 
-            line.type === 'ai' ? 'green' : 
-            undefined
-          }
-        >
-          {line.content}
+        <Text bold color="cyan">
+          AI Terminal
         </Text>
+      </Box>
+
+      {output.map((line) => (
+        <Box key={line.id} flexDirection="column" marginTop={1}>
+          {line.type === "ai" ? (
+            <Box flexDirection="column">
+              <Box>
+                <Text color="green">AI Response:</Text>
+              </Box>
+              <Box 
+                borderStyle="round" 
+                borderColor="green" 
+                paddingX={1} 
+                paddingY={0}
+              >
+                <Text color="green">
+                  {line.content}
+                </Text>
+              </Box>
+            </Box>
+          ) : (
+            <Text
+              color={
+                line.type === "error"
+                  ? "red"
+                  : line.type === "command"
+                  ? "cyan"
+                  : undefined
+              }
+            >
+              {line.content}
+            </Text>
+          )}
+        </Box>
       ))}
-      
-      {aiResponseStream && (
-        <Box marginTop={1}>
-          <Text color="green">AI: </Text>
-          <AIResponse dataStream={aiResponseStream} onDone={handleAiDone} />
+
+      {/* Display streaming response in real-time with a beautiful box */}
+      {streamingResponse && !streamingResponse.isComplete && (
+        <Box flexDirection="column" marginTop={1}>
+          <Box>
+            <Text color="green">AI Response:</Text>
+          </Box>
+          <Box 
+            borderStyle="round" 
+            borderColor="green" 
+            paddingX={1} 
+            paddingY={0}
+            marginTop={0}
+          >
+            <Text color="green">
+              {streamingResponse.content}
+              <Text color="gray">█</Text> {/* Cursor indicator */}
+            </Text>
+          </Box>
         </Box>
       )}
-      
-      <Box marginTop={1}>
-        <Text color="cyan">you &gt; </Text>
-        <Text>{input}</Text>
+
+      <Box marginTop={1} flexDirection="column">
+        <Box>
+          <Text color="cyan">You:</Text>
+        </Box>
+        <Box 
+          borderStyle="round" 
+          borderColor="cyan" 
+          paddingX={1} 
+          paddingY={0}
+        >
+          <Text color="cyan">
+            {input}
+            <Text color="gray">█</Text> {/* Cursor indicator */}
+          </Text>
+        </Box>
       </Box>
-      
-      {isProcessing && (
-        <Text color="gray">Processing...</Text>
+
+      {isProcessing && !streamingResponse && (
+        <Box marginTop={1}>
+          <Box>
+            <Text color="gray">Status:</Text>
+          </Box>
+          <Box 
+            borderStyle="round" 
+            borderColor="gray" 
+            paddingX={1} 
+            paddingY={0}
+          >
+            <Text color="gray">Processing...</Text>
+          </Box>
+        </Box>
       )}
     </Box>
   );

@@ -6,7 +6,9 @@ import path from "path";
 const app = new Hono();
 
 app.post("/", async (c) => {
-  const { prompt } = await c.req.json();
+  const { prompt, stream } = await c.req.json();
+
+  console.log("Stream:", stream);
 
   // Log the prompt
   console.log("Received prompt:", prompt);
