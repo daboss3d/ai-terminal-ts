@@ -1,21 +1,6 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import { Text, Box, useApp, useInput } from "ink";
-
-// Mock command definitions
-const commands = [
-  { name: "quit", message: "/quit - Exit the application" },
-  { name: "help", message: "/help - Show this help message" },
-  { name: "clear", message: "/clear - Clear the console" },
-  { name: "providers", message: "/providers - List available providers" },
-];
-
-const commandNames = ["quit", "help", "clear", "providers"];
-
-const helpText = `Available commands:
-  /quit      - Exit the application.
-  /help      - Show this help message.
-  /clear     - Clear the console.
-  /providers - List available providers.`;
+import { commands, commandNames, handleCommand } from "../commands";
 
 type OutputLine = {
   id: string;
@@ -49,32 +34,6 @@ const App = () => {
       setOutput((prev) => [...prev, { id: generateId(), content, type }]);
     },
     [generateId]
-  );
-
-  const handleCommand = useCallback(
-    (command: string) => {
-      switch (command) {
-        case "quit":
-          exit();
-          break;
-        case "help":
-          addOutput(helpText, "command");
-          break;
-        case "clear":
-          setOutput([]);
-          break;
-        case "providers":
-          addOutput(
-            "Providers functionality would be implemented here",
-            "command"
-          );
-          break;
-        default:
-          addOutput(`Unknown command: /${command}`, "error");
-          break;
-      }
-    },
-    [addOutput, exit]
   );
 
   const processStreamingResponse = useCallback(async (response: Response) => {
@@ -136,7 +95,16 @@ const App = () => {
         if (input.startsWith("/")) {
           const command = input.slice(1);
           if (commandNames.includes(command)) {
-            handleCommand(command);
+            // Create command context
+            const context = {
+              addOutput,
+              setOutput,
+              output,
+              exit
+            };
+            
+            // Handle the command
+            await handleCommand(command, context, []);
           } else {
             addOutput(`Unknown command: /${command}`, "error");
           }
@@ -165,7 +133,7 @@ const App = () => {
         setIsProcessing(false);
       }
     },
-    [handleCommand, addOutput, isProcessing, processStreamingResponse]
+    [addOutput, isProcessing, processStreamingResponse, output, exit]
   );
 
   // Handle keyboard input with Ink's useInput hook
