@@ -1,11 +1,15 @@
-import React, { useState, useCallback } from "react";
-import { Text, Box, useApp, useInput } from "ink";
-import { commands, commandNames, handleCommand } from "../commands";
+import React, { useState, useCallback } from 'react';
+import { Text, Box, useApp, useInput } from 'ink';
+import { commandNames, handleCommand } from '../commands';
+import { useCommandInput } from '../hooks/useCommandInput';
+import { CommandSuggestions } from './CommandSuggestions';
+import { UserInput } from './UserInput';
+import { OutputDisplay } from './OutputDisplay';
 
 type OutputLine = {
   id: string;
   content: string;
-  type: "message" | "command" | "error" | "ai";
+  type: 'message' | 'command' | 'error' | 'ai';
 };
 
 type StreamState = {
@@ -14,108 +18,173 @@ type StreamState = {
   isComplete: boolean;
 };
 
+type SubmenuOption = {
+  name: string;
+  message: string;
+  action: () => void;
+};
+
+const Submenu = ({ command, options, onCancel }) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useInput((_, key) => {
+    if (key.escape) {
+      onCancel();
+      return;
+    }
+    if (key.upArrow) {
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : options.length - 1));
+    }
+    if (key.downArrow) {
+      setSelectedIndex((prev) => (prev < options.length - 1 ? prev + 1 : 0));
+    }
+    if (key.return) {
+      options[selectedIndex].action();
+    }
+  });
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Box>
+        <Text color="yellow">Select an action for `/{command}`:</Text>
+      </Box>
+      <Box
+        borderStyle="round"
+        borderColor="yellow"
+        paddingX={1}
+        paddingY={0}
+        flexDirection="column"
+      >
+        {options.map((opt, index) => (
+          <Box key={index} marginBottom={0}>
+            {index === selectedIndex ? (
+              <Text color="yellow">
+                <Text color="cyan">▶ </Text>
+                {opt.message}
+              </Text>
+            ) : (
+              <Text color="yellow">
+                <Text>  </Text>
+                {opt.message}
+              </Text>
+            )}
+          </Box>
+        ))}
+      </Box>
+      <Box marginTop={0}>
+        <Text color="gray">↑↓ to navigate, ↵ to select, Esc to cancel</Text>
+      </Box>
+    </Box>
+  );
+};
+
 const App = () => {
   const { exit } = useApp();
-  const [input, setInput] = useState("");
   const [output, setOutput] = useState<OutputLine[]>([]);
-  const [streamingResponse, setStreamingResponse] = useState<StreamState | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const [streamingResponse, setStreamingResponse] = useState<StreamState | null>(
+    null
+  );
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
-  const [filteredCommands, setFilteredCommands] = useState<typeof commands>(commands);
-  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
 
-  // Generate unique IDs for output lines
   const generateId = useCallback(() => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
   const addOutput = useCallback(
-    (content: string, type: OutputLine["type"] = "message") => {
+    (content: string, type: OutputLine['type'] = 'message') => {
       setOutput((prev) => [...prev, { id: generateId(), content, type }]);
     },
     [generateId]
   );
 
-  const processStreamingResponse = useCallback(async (response: Response) => {
-    const reader = response.body?.getReader();
-    if (!reader) return;
+  const processStreamingResponse = useCallback(
+    async (response: Response) => {
+      const reader = response.body?.getReader();
+      if (!reader) return;
 
-    const decoder = new TextDecoder();
-    const streamId = generateId();
-    
-    // Initialize streaming response
-    setStreamingResponse({
-      id: streamId,
-      content: "",
-      isComplete: false
-    });
+      const decoder = new TextDecoder();
+      const streamId = generateId();
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        
-        // Update streaming response
-        setStreamingResponse(prev => prev ? {
-          ...prev,
-          content: prev.content + chunk
-        } : null);
-      }
-    } finally {
-      // Mark stream as complete
-      setStreamingResponse(prev => prev ? {
-        ...prev,
-        isComplete: true
-      } : null);
-      
-      // Move completed stream to output
-      setStreamingResponse(prev => {
-        if (prev && prev.isComplete) {
-          addOutput(prev.content, "ai");
-          return null;
-        }
-        return prev;
+      setStreamingResponse({
+        id: streamId,
+        content: '',
+        isComplete: false,
       });
-      
-      reader.releaseLock();
-    }
-  }, [generateId, addOutput]);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+
+          setStreamingResponse(
+            (prev) =>
+              prev ? { ...prev, content: prev.content + chunk } : null
+          );
+        }
+      } finally {
+        setStreamingResponse(
+          (prev) => (prev ? { ...prev, isComplete: true } : null)
+        );
+
+        setStreamingResponse((prev) => {
+          if (prev && prev.isComplete) {
+            addOutput(prev.content, 'ai');
+            return null;
+          }
+          return prev;
+        });
+
+        reader.releaseLock();
+      }
+    },
+    [generateId, addOutput]
+  );
 
   const processInput = useCallback(
     async (input: string) => {
       if (isProcessing) return;
 
       setIsProcessing(true);
-      setShowCommandSuggestions(false);
-      setSelectedCommandIndex(0);
+
+      if (input.trim() !== '') {
+        if (history[history.length - 1] !== input) {
+          setHistory((prev) => [...prev, input]);
+        }
+      }
 
       try {
-        if (input.startsWith("/")) {
-          const command = input.slice(1);
+        if (input.startsWith('/')) {
+          const [command, ...args] = input.slice(1).split(' ').filter(Boolean);
+
+          if (command === 'providers' && args.length === 0) {
+            setActiveSubmenu('providers');
+            setIsProcessing(false);
+            return;
+          }
+
           if (commandNames.includes(command)) {
-            // Create command context
             const context = {
               addOutput,
               setOutput,
               output,
-              exit
+              exit,
             };
-            
-            // Handle the command
-            await handleCommand(command, context, []);
-          } else {
-            addOutput(`Unknown command: /${command}`, "error");
-          }
-        } else if (input.trim() !== "") {
-          addOutput(`-> Sending to AI: ${input}`, "message");
 
-          // Send to server with streaming enabled
-          const response = await fetch("http://localhost:3001/prompts", {
-            method: "POST",
+            await handleCommand(command, context, args);
+          } else {
+            addOutput(`Unknown command: /${command}`, 'error');
+          }
+        } else if (input.trim() !== '') {
+          addOutput(`-> Sending to AI: ${input}`, 'message');
+
+          const response = await fetch('http://localhost:3001/prompts', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({ prompt: input, stream: true }),
           });
@@ -123,101 +192,52 @@ const App = () => {
           if (response.body) {
             await processStreamingResponse(response);
           } else {
-            addOutput("No response body received", "error");
+            addOutput('No response body received', 'error');
           }
         }
       } catch (error) {
-        addOutput(`Error: ${error.message}`, "error");
+        addOutput(`Error: ${error.message}`, 'error');
       } finally {
-        setInput("");
         setIsProcessing(false);
       }
     },
-    [addOutput, isProcessing, processStreamingResponse, output, exit]
+    [addOutput, isProcessing, processStreamingResponse, output, exit, history]
   );
 
-  // Handle keyboard input with Ink's useInput hook
-  useInput((inputChar, key) => {
-    // Handle command selection when suggestions are shown
-    if (showCommandSuggestions) {
-      if (key.upArrow) {
-        setSelectedCommandIndex(prev => 
-          prev > 0 ? prev - 1 : filteredCommands.length - 1
-        );
-        return;
-      }
-      
-      if (key.downArrow) {
-        setSelectedCommandIndex(prev => 
-          prev < filteredCommands.length - 1 ? prev + 1 : 0
-        );
-        return;
-      }
-      
-      if (key.return) {
-        if (filteredCommands.length > 0) {
-          const selectedCommand = filteredCommands[selectedCommandIndex];
-          setInput("/" + selectedCommand.name);
-          setShowCommandSuggestions(false);
-          setSelectedCommandIndex(0);
-        }
-        return;
-      }
-      
-      if (key.escape) {
-        setShowCommandSuggestions(false);
-        setSelectedCommandIndex(0);
-        return;
-      }
-    }
-    
-    // Handle regular input
-    if (key.escape || (key.ctrl && key.name === "c")) {
-      exit();
-    } else if (key.return) {
-      processInput(input);
-    } else if (key.backspace || key.delete) {
-      const newInput = input.slice(0, -1);
-      setInput(newInput);
-      
-      // Handle command suggestions
-      if (newInput === "/") {
-        setShowCommandSuggestions(true);
-        setFilteredCommands(commands);
-        setSelectedCommandIndex(0);
-      } else if (newInput.startsWith("/")) {
-        const filterText = newInput.slice(1);
-        const filtered = commands.filter(cmd => 
-          cmd.name.startsWith(filterText)
-        );
-        setFilteredCommands(filtered);
-        setSelectedCommandIndex(0);
-      } else {
-        setShowCommandSuggestions(false);
-        setSelectedCommandIndex(0);
-      }
-    } else if (inputChar) {
-      const newInput = input + inputChar;
-      setInput(newInput);
-      
-      // Handle command suggestions
-      if (newInput === "/") {
-        setShowCommandSuggestions(true);
-        setFilteredCommands(commands);
-        setSelectedCommandIndex(0);
-      } else if (newInput.startsWith("/")) {
-        const filterText = newInput.slice(1);
-        const filtered = commands.filter(cmd => 
-          cmd.name.startsWith(filterText)
-        );
-        setFilteredCommands(filtered);
-        setSelectedCommandIndex(0);
-      } else {
-        setShowCommandSuggestions(false);
-        setSelectedCommandIndex(0);
-      }
-    }
-  });
+  const {
+    input,
+    showSuggestions,
+    filteredCommands,
+    selectedIndex,
+  } = useCommandInput(processInput, history, !activeSubmenu);
+
+  const submenuOptions: SubmenuOption[] = [
+    {
+      name: 'list',
+      message: 'List all providers',
+      action: () => {
+        processInput('/providers list');
+        setActiveSubmenu(null);
+      },
+    },
+    {
+      name: 'edit',
+      message: 'Edit a provider',
+      action: () => {
+        // This will be handled by the new interactive editor
+        // For now, it does nothing, but we will change this
+        setActiveSubmenu(null);
+      },
+    },
+    {
+      name: 'delete',
+      message: 'Delete a provider',
+      action: () => {
+        // This will also be handled by a new interactive UI
+        setActiveSubmenu(null);
+      },
+    },
+  ];
 
   return (
     <Box flexDirection="column">
@@ -227,126 +247,53 @@ const App = () => {
         </Text>
       </Box>
 
-      {output.map((line) => (
-        <Box key={line.id} flexDirection="column" marginTop={1}>
-          {line.type === "ai" ? (
-            <Box flexDirection="column">
-              <Box>
-                <Text color="green">AI Response:</Text>
-              </Box>
-              <Box 
-                borderStyle="round" 
-                borderColor="green" 
-                paddingX={1} 
-                paddingY={0}
-              >
-                <Text color="green">
-                  {line.content}
-                </Text>
-              </Box>
-            </Box>
-          ) : (
-            <Text
-              color={
-                line.type === "error"
-                  ? "red"
-                  : line.type === "command"
-                  ? "cyan"
-                  : undefined
-              }
-            >
-              {line.content}
-            </Text>
-          )}
-        </Box>
-      ))}
+      <OutputDisplay output={output} />
 
-      {/* Display streaming response in real-time with a beautiful box */}
       {streamingResponse && !streamingResponse.isComplete && (
         <Box flexDirection="column" marginTop={1}>
           <Box>
             <Text color="green">AI Response:</Text>
           </Box>
-          <Box 
-            borderStyle="round" 
-            borderColor="green" 
-            paddingX={1} 
+          <Box
+            borderStyle="round"
+            borderColor="green"
+            paddingX={1}
             paddingY={0}
             marginTop={0}
           >
             <Text color="green">
               {streamingResponse.content}
-              <Text color="gray">█</Text> {/* Cursor indicator */}
+              <Text color="gray">█</Text>
             </Text>
           </Box>
         </Box>
       )}
 
-      {/* Display command suggestions with selection */}
-      {showCommandSuggestions && (
-        <Box flexDirection="column" marginTop={1}>
-          <Box>
-            <Text color="yellow">Available Commands:</Text>
-          </Box>
-          <Box 
-            borderStyle="round" 
-            borderColor="yellow" 
-            paddingX={1} 
-            paddingY={0}
-            flexDirection="column"
-          >
-            {filteredCommands.length > 0 ? (
-              filteredCommands.map((cmd, index) => (
-                <Box key={index} marginBottom={0}>
-                  {index === selectedCommandIndex ? (
-                    <Text color="yellow">
-                      <Text color="cyan">▶ </Text>
-                      {cmd.message}
-                    </Text>
-                  ) : (
-                    <Text color="yellow">
-                      <Text>  </Text>
-                      {cmd.message}
-                    </Text>
-                  )}
-                </Box>
-              ))
-            ) : (
-              <Text color="yellow">No matching commands found</Text>
-            )}
-          </Box>
-          <Box marginTop={0}>
-            <Text color="gray">↑↓ to navigate, ↵ to select, Esc to cancel</Text>
-          </Box>
-        </Box>
+      <CommandSuggestions
+        show={showSuggestions}
+        commands={filteredCommands}
+        selectedIndex={selectedIndex}
+      />
+
+      {activeSubmenu === 'providers' && (
+        <Submenu
+          command="providers"
+          options={submenuOptions}
+          onCancel={() => setActiveSubmenu(null)}
+        />
       )}
 
-      <Box marginTop={1} flexDirection="column">
-        <Box>
-          <Text color="cyan">You:</Text>
-        </Box>
-        <Box 
-          borderStyle="round" 
-          borderColor="cyan" 
-          paddingX={1} 
-          paddingY={0}
-        >
-          <Text color="cyan">
-            {input}
-            <Text color="gray">█</Text> {/* Cursor indicator */}
-          </Text>
-        </Box>
-      </Box>
+      {!activeSubmenu && <UserInput input={input} />}
 
       {isProcessing && !streamingResponse && (
         <Box marginTop={1}>
           <Box>
             <Text color="gray">Status:</Text>
           </Box>
-          <Box 
-            borderStyle="round" 
-            borderColor="gray" 
-            paddingX={1} 
+          <Box
+            borderStyle="round"
+            borderColor="gray"
+            paddingX={1}
             paddingY={0}
           >
             <Text color="gray">Processing...</Text>

@@ -1,9 +1,10 @@
-// Import your actual providers functionality
-import { getProviders } from "../../../../src/lib/providers"; // Adjust path as needed
-// import { getProviders } from "../../../lib/providers"; // Alternative path
-
-import React from "react";
-import { Text, Box } from "ink";
+import React from 'react';
+import { Text, Box } from 'ink';
+import {
+  getProviders,
+  updateProvider,
+  deleteProvider,
+} from '../../../../src/lib/providers';
 
 // Define command types
 export type Command = {
@@ -15,11 +16,12 @@ export type Command = {
 export type CommandContext = {
   addOutput: (
     content: string,
-    type?: "message" | "command" | "error" | "ai"
+    type?: 'message' | 'command' | 'error' | 'ai'
   ) => void;
   setOutput: React.Dispatch<React.SetStateAction<any[]>>;
   output: any[];
   exit: () => void;
+  // setPrompting is removed as we are removing enquirer
 };
 
 // Command handlers
@@ -33,36 +35,106 @@ const commandHandlers = {
   /quit      - Exit the application
   /help      - Show this help message
   /clear     - Clear the console
-  /providers - List available providers`;
-    ctx.addOutput(helpText, "command");
+  /providers [list|edit|delete] - Manage providers`;
+    ctx.addOutput(helpText, 'command');
   },
 
   clear: async (ctx: CommandContext) => {
     ctx.setOutput([]);
   },
 
-  providers: async (ctx: CommandContext) => {
-    try {
-      // Use your actual providers system
-      const providers = getProviders();
+  providers: async (ctx: CommandContext, args: string[]) => {
+    const [subcommand, ...subcommandArgs] = args;
 
-      if (providers.length === 0) {
-        ctx.addOutput("No providers configured", "command");
-        return;
-      }
+    switch (subcommand) {
+      case 'list':
+      case undefined:
+        try {
+          const providers = getProviders();
+          if (providers.length === 0) {
+            ctx.addOutput('No providers configured', 'command');
+            return;
+          }
+          const providersList = providers
+            .map((provider) => {
+              const status = provider.enabled ? '✓' : '✗';
+              const baseUrl = provider.baseUrl ? ` (${provider.baseUrl})` : '';
+              return `  ${status} ${provider.id} - ${provider.name} (${provider.model})${baseUrl}`;
+            })
+            .join('\n');
+          const output = `Available Providers:\n${providersList}`;
+          ctx.addOutput(output, 'command');
+        } catch (error) {
+          ctx.addOutput(`Error loading providers: ${error.message}`, 'error');
+        }
+        break;
 
-      const providersList = providers
-        .map((provider) => {
-          const status = provider.enabled ? "✓" : "✗";
-          const baseUrl = provider.baseUrl ? ` (${provider.baseUrl})` : "";
-          return `  ${status} ${provider.name} (${provider.model})${baseUrl}`;
-        })
-        .join("\n");
+      case 'edit':
+        if (subcommandArgs.length < 3 || subcommandArgs.length % 2 !== 1) {
+          ctx.addOutput(
+            'Usage: /providers edit <id> <field1> <value1> [field2 value2 ...]',
+            'error'
+          );
+          return;
+        }
+        try {
+          const id = subcommandArgs[0];
+          const updates: { [key: string]: string | boolean } = {};
+          for (let i = 1; i < subcommandArgs.length; i += 2) {
+            const field = subcommandArgs[i];
+            const value = subcommandArgs[i + 1];
+            if (value === undefined) {
+              ctx.addOutput(`Error: Missing value for field "${field}"`, 'error');
+              return;
+            }
+            if (field === 'enabled') {
+              updates[field] = value === 'true';
+            } else {
+              updates[field] = value;
+            }
+          }
 
-      const output = `Available Providers:\n${providersList}`;
-      ctx.addOutput(output, "command");
-    } catch (error) {
-      ctx.addOutput(`Error loading providers: ${error.message}`, "error");
+          const updatedProvider = updateProvider(id, updates);
+          if (updatedProvider) {
+            ctx.addOutput(`Provider "${id}" updated successfully.`, 'command');
+          } else {
+            ctx.addOutput(`Provider with ID "${id}" not found.`, 'error');
+          }
+        } catch (error) {
+          ctx.addOutput(`Error updating provider: ${error.message}`, 'error');
+        }
+        break;
+
+      case 'delete':
+        if (subcommandArgs.length !== 1) {
+          ctx.addOutput('Usage: /providers delete <id>', 'error');
+          return;
+        }
+        try {
+          const id = subcommandArgs[0];
+          const success = deleteProvider(id);
+          if (success) {
+            ctx.addOutput(
+              `Provider "${id}" deleted successfully.`, 
+              'command'
+            );
+          } else {
+            ctx.addOutput(
+              `Provider with ID "${id}" not found.`, 
+              'error'
+            );
+          }
+        } catch (error) {
+          ctx.addOutput(
+            `Error deleting provider: ${error.message}`, 
+            'error'
+          );
+        }
+        break;
+
+      default:
+        ctx.addOutput('Usage: /providers [list|edit|delete]', 'command');
+        break;
     }
   },
 };
@@ -70,23 +142,23 @@ const commandHandlers = {
 // Export the commands with their handlers
 export const commands: Command[] = [
   {
-    name: "quit",
-    message: "/quit - Exit the application",
+    name: 'quit',
+    message: '/quit - Exit the application',
     handler: commandHandlers.quit,
   },
   {
-    name: "help",
-    message: "/help - Show this help message",
+    name: 'help',
+    message: '/help - Show this help message',
     handler: commandHandlers.help,
   },
   {
-    name: "clear",
-    message: "/clear - Clear the console",
+    name: 'clear',
+    message: '/clear - Clear the console',
     handler: commandHandlers.clear,
   },
   {
-    name: "providers",
-    message: "/providers - List available providers",
+    name: 'providers',
+    message: '/providers [list|edit|delete] - Manage providers',
     handler: commandHandlers.providers,
   },
 ];
@@ -103,8 +175,9 @@ export async function handleCommand(
   const command = commands.find((cmd) => cmd.name === commandName);
 
   if (command) {
-    await command.handler(context, args);
+    const filteredArgs = args.filter((arg) => arg !== '');
+    await command.handler(context, filteredArgs);
   } else {
-    context.addOutput(`Unknown command: /${commandName}`, "error");
+    context.addOutput(`Unknown command: /${commandName}`, 'error');
   }
 }

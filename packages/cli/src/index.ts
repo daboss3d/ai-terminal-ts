@@ -4,7 +4,7 @@ import chalk from "chalk";
 import boxen from "boxen";
 import readline from "readline";
 
-import { sendMessageToServer } from "./server.ts";
+import { sendMessageToServer } from "../../server/src/server.ts";
 
 // Mock providers function for now
 async function listProviders() {
