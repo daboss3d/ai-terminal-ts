@@ -44,12 +44,3 @@ Each agent is defined by the following properties:
 }
 ```
 
-## Adding New Agents
-
-Using Server server/api/agents.ts
-
-Create a POST endpoint that accepts a new agent configuration in the request body. Validate the input and append it to the agents.json file.
-
-Create a GET endpoint that returns the list of all agents.
-
-Create a Page that allows user to Add, Edit, Delete agents.

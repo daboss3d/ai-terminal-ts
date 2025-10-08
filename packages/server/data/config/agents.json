@@ -1,0 +1,20 @@
+[
+  {
+    "id": "default-agent",
+    "name": "Default Agent",
+    "description": "A default agent for testing purposes",
+    "config": {
+      "model": "gpt-4",
+      "temperature": 0.7
+    }
+  },
+  {
+    "id": "test-agent",
+    "name": "Test Agent",
+    "description": "A test agent",
+    "config": {
+      "model": "gpt-4",
+      "temperature": 0.7
+    }
+  }
+]

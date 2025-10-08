@@ -27,14 +27,6 @@
     "model": "ai/gemma3:latest",
     "apiKey": "",
     "baseUrl": "http://127.0.0.1:12434/engines/v1",
-    "enabled": false
-  },
-  {
-    "id": "server",
-    "name": "deepseek server-ai",
-    "model": "deepseek-r1:1.5b",
-    "apiKey": "",
-    "baseUrl": "http://10.1.1.62:11434",
     "enabled": true
   }
 ]

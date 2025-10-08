@@ -4,7 +4,13 @@ import { Server } from 'socket.io'
 import agents from './api/agents'
 import prompts from './api/prompts'
 
+
+import { testVar } from '@lib/test/test.ts'
+console.log('testVar:', testVar)
+
+
 const app = new Hono()
+
 
 app.route('/agents', agents)
 app.route('/prompts', prompts)
