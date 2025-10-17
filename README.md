@@ -28,4 +28,12 @@ If you want to reinstall the project, you can run the following command:
 ```bash
 rm -r node_modules  &&  rm bun.lock && bun pm cache rm && bun install
 
+#### Day commands
+```shell
+bun run dev:start    # start the development server
+pkill -f "bun run src/server.ts"
+```
+
+
+
 ```

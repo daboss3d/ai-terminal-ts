@@ -7,7 +7,8 @@
   "scripts": {
     "dev:server": "bun run packages/server/src/index.ts",
     "dev:cli": "bun run packages/cli/src/index.ts",
-    "dev:web": "bun run packages/web/src/index.tsx"
+    "dev:web": "bun run packages/web/src/index.tsx",
+    "dev:start": "bun run dev:server & bun run dev:web"
   },
   "devDependencies": {
     "@tsconfig/bun": "^1.0.8",
@@ -16,7 +17,8 @@
   },
   "dependencies": {
     "ink": "^6.2.2",
+    "ink-text-input": "^6.0.0",
     "react": "^19.1.1",
-    "ink-text-input": "^6.0.0"
+    "zod": "^4.1.12"
   }
 }

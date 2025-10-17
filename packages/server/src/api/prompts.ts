@@ -4,31 +4,23 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import { getProviders } from "@lib/providers";
-
+import { trackPromptUsage } from "./stats";
 
 const app = new Hono();
 
 app.post("/", async (c) => {
-  const { prompt, stream,
-    provider } = await c.req.json();
+  const { prompt, stream: streamOption,
+    provider, agent } = await c.req.json();
 
-  console.log("Stream:", stream, "provider:", provider);
+  console.log("Stream:", streamOption, "provider:", provider, "agent", agent);
 
   // Log the prompt
   console.log("Received prompt:", prompt);
 
-  //  try {
-  // Read providers configuration
-  //   const providersPath = path.resolve(
-  //   process.cwd(),
-  //    "data",
-  //    "config",
-  //    "providers.json"
-  //  );
-  //    const providersData = await fs.readFile(providersPath, "utf-8");
-  //    const providers = JSON.parse(providersData);
-  const providers = getProviders();
+  // Track the prompt usage
+  const startTime = Date.now();
 
+  const providers = getProviders();
 
   // Find the active provider
   const activeProvider = providers.find((p) => p.enabled);
@@ -65,18 +57,26 @@ app.post("/", async (c) => {
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Error from provider: ${errorText}`);
+    // Track the failed request as well
+    trackPromptUsage(prompt, Date.now() - startTime);
     return c.json({ error: `Error from provider: ${errorText}` }, 500);
   }
 
   return streamText(c, async (stream) => {
     const reader = response.body?.getReader();
     if (!reader) {
+      // Track the failed request
+      trackPromptUsage(prompt, Date.now() - startTime);
       return;
     }
     const decoder = new TextDecoder();
+    let tokenCount = 0;
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
+        // Track the completed request with response time
+        trackPromptUsage(prompt, Date.now() - startTime, tokenCount);
         break;
       }
       const chunk = decoder.decode(value);
@@ -90,6 +90,7 @@ app.post("/", async (c) => {
             const parsed = JSON.parse(data);
             const text = parsed.choices[0].delta.content;
             if (text) {
+              tokenCount += text.length; // Simple token count approximation
               await stream.write(text);
             }
           } catch (e) {
@@ -98,12 +99,9 @@ app.post("/", async (c) => {
         }
       }
     }
+    // Track the completed request with response time after processing all chunks
+    trackPromptUsage(prompt, Date.now() - startTime, tokenCount);
   });
-} catch (error) {
-  const errorString = error instanceof Error ? error.message : String(error);
-  console.error("Error processing prompt:", error);
-  return c.json({ error: errorString }, 500);
-}
 });
 
 export default app;
