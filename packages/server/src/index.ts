@@ -4,6 +4,7 @@ import { Server } from 'socket.io'
 import agents from './api/agents'
 import prompts from './api/prompts'
 import providers from './api/providers'
+import chat from './api/chat'
 
 import stats from './api/stats'
 
@@ -16,6 +17,7 @@ const app = new Hono()
 
 app.route('/api/providers', providers)
 app.route('/api/agents', agents)
+app.route('/api/chat', chat)  // Use the new chat API module
 app.route('/prompts', prompts)
 app.route('/prompts/stats', stats)  // Add stats as a sub-route under prompts at /prompts/stats
 
@@ -23,7 +25,7 @@ app.get('/', (c) => {
   return c.text('Hello Hono!')
 })
 
-const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
 
 const server = serve({ ...app, port }, (info) => {
   console.log(`Server AI is running at http://localhost:${info.port}`)

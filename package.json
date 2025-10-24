@@ -7,8 +7,10 @@
   "scripts": {
     "dev:server": "bun run packages/server/src/index.ts",
     "dev:cli": "bun run packages/cli/src/index.ts",
-    "dev:web": "bun run packages/web/src/index.tsx",
-    "dev:start": "bun run dev:server & bun run dev:web"
+    "dev:web": "bun run packages/web/src/server.ts",
+    "dev:start": "bun run dev:server & bun run dev:web",
+    "dev:stop": "pkill -f 'bun run src/server.ts' ",
+    "build:client": "node packages/web/src/build-client.js"
   },
   "devDependencies": {
     "@tsconfig/bun": "^1.0.8",

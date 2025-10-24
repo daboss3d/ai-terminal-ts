@@ -5,7 +5,10 @@
   "main": "src/index.tsx",
   "scripts": {
     "dev": "bun run src/index.tsx",
-    "start": "bun run src/server.ts"
+    "start": "bun run src/server.ts",
+    "build": "bun run src/build-client.js",
+    "build:client": "node src/build-client.js",
+    "build:client:min": "BUILD_MINIFY=true node src/build-client.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.5",

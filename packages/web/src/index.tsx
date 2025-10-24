@@ -5,8 +5,10 @@ import { jsx, Fragment } from 'hono/jsx';
 import { html, raw } from 'hono/html'
 
 // test comment
-// 2nd test comment
-// 3rd test comment
+function getBackendUrl() {
+  return 'http://localhost:3001'; // Assuming backend runs on port 3001
+}
+
 
 // Create the Hono app
 const app = new Hono();
@@ -44,7 +46,7 @@ app.get('/', (c) => {
     <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
         <title>AI Terminal</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <script>
@@ -56,61 +58,7 @@ app.get('/', (c) => {
             document.documentElement.classList.remove('dark');
           }
         </script>
-        <style>
-          :root {
-            --sidebar-width: 240px;
-          }
-          
-          .dark {
-            color-scheme: dark;
-          }
-          
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-          }
-          
-          .chat-container {
-            height: calc(100vh - 4rem); /* Full height minus header and footer */
-          }
-          
-          .sidebar {
-            width: var(--sidebar-width);
-            transition: all 0.3s ease;
-            overflow-x: hidden;
-          }
-          
-          .sidebar.collapsed {
-            width: 4rem; /* Width of the collapsed sidebar with just icons */
-          }
-          
-          .sidebar.collapsed .sidebar-label {
-            display: none;
-          }
-          
-          .sidebar.collapsed #sidebar-collapse svg {
-            transform: rotate(180deg);
-          }
-          
-          .message.user {
-            background-color: #dbeafe;
-            border-radius: 12px;
-            padding: 0.75rem 1rem;
-          }
-          
-          .message.assistant {
-            background-color: #f3f4f6;
-            border-radius: 12px;
-            padding: 0.75rem 1rem;
-          }
-          
-          .dark .message.user {
-            background-color: #2563eb;
-          }
-          
-          .dark .message.assistant {
-            background-color: #374151;
-          }
-        </style>
+        <link rel="stylesheet" href="/static/styles.css">
       </head>
       <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <div class="flex flex-col h-screen">
@@ -212,7 +160,7 @@ app.get('/', (c) => {
               </nav>
             </aside>
             <main class="flex-1 overflow-auto p-4">
-              <div class="chat-container flex flex-col">
+              <div id="main-content" class="chat-container flex flex-col">
                 <div class="chat-header p-3 border-b border-gray-200 dark:border-gray-700 flex items-center">
                   <div class="flex items-center">
                     <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
@@ -262,324 +210,7 @@ app.get('/', (c) => {
             </div>
           </footer>
         </div>
-        <script>
-          // Toggle sidebar
-          const sidebarToggle = document.getElementById('sidebar-toggle');
-          const sidebarCollapse = document.getElementById('sidebar-collapse');
-          const sidebar = document.getElementById('sidebar');
-
-          if (sidebarToggle && sidebar) {
-            sidebarToggle.addEventListener('click', () => {
-              sidebar.classList.toggle('collapsed');
-            });
-          }
-
-          if (sidebarCollapse && sidebar) {
-            sidebarCollapse.addEventListener('click', () => {
-              sidebar.classList.toggle('collapsed');
-            });
-          }
-
-          // Add class to hide sidebar labels when collapsed
-          function updateSidebarDisplay() {
-            if (sidebar) {
-              const isCollapsed = sidebar.classList.contains('collapsed');
-              const labels = document.querySelectorAll('.sidebar-label');
-              labels.forEach(label => {
-                if (isCollapsed) {
-                  label.style.display = 'none';
-                } else {
-                  label.style.display = 'inline';
-                }
-              });
-            }
-          }
-
-          // Run on initial load and when sidebar state changes
-          document.addEventListener('DOMContentLoaded', updateSidebarDisplay);
-          if (sidebar) {
-            const observer = new MutationObserver(updateSidebarDisplay);
-            observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-          }
-
-          // Theme toggle functionality
-          const themeToggle = document.getElementById('theme-toggle');
-          const themeIcon = document.getElementById('theme-icon');
-
-          if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-              document.documentElement.classList.toggle('dark');
-              
-              // Save preference to localStorage
-              if (document.documentElement.classList.contains('dark')) {
-                localStorage.setItem('theme', 'dark');
-              } else {
-                localStorage.setItem('theme', 'light');
-              }
-              
-              // Update icon based on theme
-              updateThemeIcon();
-            });
-            
-            // Initialize theme icon on page load
-            updateThemeIcon();
-          }
-          
-          function updateThemeIcon() {
-            if (themeIcon) {
-              if (document.documentElement.classList.contains('dark')) {
-                // Sun icon for dark mode (meaning we're switching to light mode)
-                themeIcon.setAttribute('d', 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z');
-              } else {
-                // Moon icon for light mode (meaning we're switching to dark mode)
-                themeIcon.setAttribute('d', 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z');
-              }
-            }
-          }
-
-          // Initialize theme based on saved preference
-          function initializeTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
-              document.documentElement.classList.add('dark');
-            } else if (savedTheme === 'light') {
-              document.documentElement.classList.remove('dark');
-            } else {
-              // If no saved preference, use system preference
-              if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-              } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-              }
-            }
-            updateThemeIcon();
-          }
-
-          // Run initialization when DOM is loaded
-          document.addEventListener('DOMContentLoaded', initializeTheme);
-
-          // Add message sending functionality
-          const messageInput = document.getElementById('message-input');
-          const sendButton = document.getElementById('send-button');
-          let messageCount = 0;
-
-          if (messageInput && sendButton) {
-            // Send message on button click
-            sendButton.addEventListener('click', sendMessage);
-            
-            // Send message on Enter key (but allow Shift+Enter for new line)
-            messageInput.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault(); // Prevent new line
-                sendMessage();
-              }
-            });
-          }
-
-          async function sendMessage() {
-            if (!messageInput || !messageInput.value.trim()) return;
-            
-            const message = messageInput.value.trim();
-            messageInput.value = '';
-            
-            // Add user message to chat
-            addMessageToChat(message, 'user');
-            
-            try {
-              // Send message to backend API
-              const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  message: message,
-                  agentId: 'default-agent' // This would come from the selected agent
-                })
-              });
-              
-              if (!response.ok) {
-                throw new Error('HTTP error! status: ' + response.status);
-              }
-              
-              const data = await response.json();
-              
-              // Add assistant response to chat
-              addMessageToChat(data.response, 'assistant');
-            } catch (error) {
-              console.error('Error sending message:', error);
-              addMessageToChat("Sorry, there was an error communicating with the AI service.", 'assistant');
-            }
-          }
-
-          function addMessageToChat(content, sender) {
-            const messagesContainer = document.querySelector('.chat-messages');
-            if (!messagesContainer) return;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message', sender, 'max-w-3/4');
-            
-            const messageContent = document.createElement('div');
-            messageContent.classList.add('flex');
-            
-            // Add avatar
-            const avatarDiv = document.createElement('div');
-            avatarDiv.classList.add('w-8', 'h-8', 'rounded-full', 'flex', 'items-center', 'justify-center', 'mr-2', 'flex-shrink-0');
-            
-            if (sender === 'user') {
-              avatarDiv.classList.add('bg-blue-500');
-              avatarDiv.innerHTML = '<span class="font-bold text-white">U</span>';
-            } else {
-              avatarDiv.classList.add('bg-gray-200', 'dark:bg-gray-700');
-              avatarDiv.innerHTML = '<span class="font-bold text-gray-700 dark:text-gray-200">AI</span>';
-            }
-            
-            // Add message bubble
-            const bubbleDiv = document.createElement('div');
-            
-            const messageParagraph = document.createElement('p');
-            messageParagraph.textContent = content;
-            
-            // Add timestamp
-            const timestampDiv = document.createElement('div');
-            timestampDiv.classList.add('text-xs', 'text-gray-500', 'dark:text-gray-400', 'mt-1');
-            const now = new Date();
-            timestampDiv.textContent = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-            
-            bubbleDiv.appendChild(messageParagraph);
-            bubbleDiv.appendChild(timestampDiv);
-            
-            messageContent.appendChild(avatarDiv);
-            messageContent.appendChild(bubbleDiv);
-            messageDiv.appendChild(messageContent);
-            
-            messagesContainer.appendChild(messageDiv);
-            
-            // Update message count
-            messageCount++;
-            updateStats(messageCount, 0); // Token count would be calculated in a real implementation
-            
-            // Scroll to bottom
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-          }
-
-          // Function to load agents from API and populate sidebar
-          async function loadAgents() {
-            try {
-              const response = await fetch('/api/agents');
-              if (!response.ok) {
-                throw new Error('HTTP error! status: ' + response.status);
-              }
-              
-              const agents = await response.json();
-              const agentsList = document.getElementById('agents-list');
-              
-              if (agentsList) {
-                // Clear existing agents
-                agentsList.innerHTML = '';
-                
-                // Add each agent to the list
-                agents.forEach(function(agent) {
-                  const li = document.createElement('li');
-                  li.innerHTML = 
-                    '<a href="#" class="flex items-center p-2 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group agent-item" data-agent-id="' + agent.id + '">' +
-                      '<span class="sidebar-label">' + agent.name + '</span>' +
-                    '</a>';
-                  agentsList.appendChild(li);
-                });
-                
-                // Add click event listeners to agent items
-                document.querySelectorAll('.agent-item').forEach(function(item) {
-                  item.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var agentId = e.currentTarget.getAttribute('data-agent-id');
-                    if (agentId) {
-                      selectAgent(agentId);
-                    }
-                  });
-                });
-              }
-            } catch (error) {
-              console.error('Error loading agents:', error);
-            }
-          }
-
-          // Function to load providers from API and populate sidebar
-          async function loadProviders() {
-            try {
-              const response = await fetch('/api/providers');
-              if (!response.ok) {
-                throw new Error('HTTP error! status: ' + response.status);
-              }
-              
-              const providers = await response.json();
-              const providersList = document.getElementById('providers-list');
-              
-              if (providersList) {
-                // Clear existing providers
-                providersList.innerHTML = '';
-                
-                // Add each provider to the list
-                providers.forEach(function(provider) {
-                  const li = document.createElement('li');
-                  var statusClass = provider.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
-                  var statusText = provider.enabled ? 'ON' : 'OFF';
-                  li.innerHTML = 
-                    '<a href="#" class="flex items-center p-2 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group provider-item" data-provider-id="' + provider.id + '">' +
-                      '<span class="sidebar-label">' + provider.name + '</span>' +
-                      '<span class="ml-auto text-xs px-2 py-1 rounded ' + statusClass + '">' +
-                        statusText +
-                      '</span>' +
-                    '</a>';
-                  providersList.appendChild(li);
-                });
-              }
-            } catch (error) {
-              console.error('Error loading providers:', error);
-            }
-          }
-
-          // Function to select an agent
-          function selectAgent(agentId) {
-            // Update the active agent display
-            const activeAgentSpan = document.getElementById('active-agent');
-            if (activeAgentSpan) {
-              activeAgentSpan.textContent = agentId;
-            }
-            
-            // Update footer to show current agent
-            const currentAgentSpan = document.getElementById('current-agent');
-            if (currentAgentSpan) {
-              currentAgentSpan.textContent = agentId;
-            }
-            
-            // In a real implementation, we would store the selected agent in state
-            console.log('Selected agent:', agentId);
-          }
-
-          // Function to update message and token counts in footer
-          function updateStats(messageCount, tokenCount) {
-            const messageCountSpan = document.getElementById('message-count');
-            const tokenCountSpan = document.getElementById('token-count');
-            
-            if (messageCountSpan) {
-              messageCountSpan.textContent = messageCount.toString();
-            }
-            
-            if (tokenCountSpan) {
-              tokenCountSpan.textContent = tokenCount.toString();
-            }
-          }
-
-          // Run initialization when DOM is loaded
-          document.addEventListener('DOMContentLoaded', async function() {
-            initializeTheme();
-            await loadAgents();
-            await loadProviders();
-          });
-        </script>
+        <script src="/static/client.js"></script>
       </body>
     </html>
   `);
@@ -587,63 +218,93 @@ app.get('/', (c) => {
 
 // API routes proxy to backend
 app.get('/api/*', async (c) => {
-  const backendUrl = 'http://localhost:3001'; // Assuming backend runs on port 3001
-  const url = new URL(c.req.url);
-  const backendResponse = await fetch(`${backendUrl}${url.pathname}${url.search}`);
-  const data = await backendResponse.json();
-  return c.json(data);
+  try {
+    const backendUrl = getBackendUrl();
+    const url = new URL(c.req.url);
+    const backendResponse = await fetch(`${backendUrl}${url.pathname}${url.search}`);
+
+    if (!backendResponse.ok) {
+      // If backend is not available, return an empty response or mock data
+      console.warn(`Backend request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Backend service not available" }, 503);
+    }
+
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error proxying API request:', error);
+    // Return mock data when backend is not available
+    const path = c.req.path;
+    if (path === '/api/agents') {
+      return c.json([
+        { id: "default-agent", name: "Default Agent", description: "This is a default agent", model: "gpt-3.5-turbo", temperature: 0.7, top_p: 1, frequency_penalty: 0, presence_penalty: 0, max_tokens: 1000, provider: "openai", system_prompt: "You are a helpful assistant.", tools: [], use_tools: false, use_memory: false }
+      ]);
+    } else if (path === '/api/providers') {
+      return c.json([
+        { id: "openai", name: "OpenAI", apiKey: "", model: "gpt-3.5-turbo", enabled: false },
+        { id: "anthropic", name: "Anthropic", apiKey: "", model: "claude-3-haiku-20240307", enabled: false },
+        { id: "ollama", name: "Ollama", apiKey: "", model: "llama3", baseUrl: "http://localhost:11434", enabled: false }
+      ]);
+    } else {
+      return c.json({ error: "Service temporarily unavailable" }, 503);
+    }
+  }
 });
 
 app.post('/api/*', async (c) => {
-  const backendUrl = 'http://localhost:3001'; // Assuming backend runs on port 3001
-  const url = new URL(c.req.url);
+  try {
+    const backendUrl = 'http://localhost:3001'; // Assuming backend runs on port 3001
+    const url = new URL(c.req.url);
 
-  const body = await c.req.json();
+    const body = await c.req.json();
 
-  const backendResponse = await fetch(`${backendUrl}${url.pathname}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body)
-  });
+    const backendResponse = await fetch(`${backendUrl}${url.pathname}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body)
+    });
 
-  const data = await backendResponse.json();
-  return c.json(data);
+    if (!backendResponse.ok) {
+      console.warn(`Backend request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Backend service not available" }, 503);
+    }
+
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error proxying API request:', error);
+    return c.json({ error: "Service temporarily unavailable" }, 503);
+  }
 });
 
 // Special route for chat functionality
 app.post('/api/chat', async (c) => {
-  const backendUrl = 'http://localhost:3001';
-  const body = await c.req.json();
+  try {
+    const backendUrl = getBackendUrl();
+    const body = await c.req.json();
 
-  // Forward the chat request to the backend
-  const backendResponse = await fetch(`${backendUrl}/api/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body)
-  });
+    // Forward the chat request to the backend
+    const backendResponse = await fetch(`${backendUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body)
+    });
 
-  const data = await backendResponse.json();
-  return c.json(data);
-});
+    if (!backendResponse.ok) {
+      console.warn(`Chat request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Chat service not available" }, 503);
+    }
 
-// Get agents from backend
-app.get('/api/agents', async (c) => {
-  const backendUrl = 'http://localhost:3001';
-  const backendResponse = await fetch(`${backendUrl}/api/agents`);
-  const data = await backendResponse.json();
-  return c.json(data);
-});
-
-// Get providers from backend
-app.get('/api/providers', async (c) => {
-  const backendUrl = 'http://localhost:3001';
-  const backendResponse = await fetch(`${backendUrl}/api/providers`);
-  const data = await backendResponse.json();
-  return c.json(data);
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error in chat API:', error);
+    return c.json({ error: "Chat service temporarily unavailable", response: "Sorry, there was an error communicating with the AI service." }, 503);
+  }
 });
 
 // Layout component
