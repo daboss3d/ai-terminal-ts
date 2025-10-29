@@ -3,6 +3,8 @@ import { jsxRenderer } from 'hono/jsx-renderer';
 import { serveStatic } from 'hono/bun';
 import { jsx, Fragment } from 'hono/jsx';
 import { html, raw } from 'hono/html'
+//import providersApp from './providers_page';
+import providersApp from './pages/Providers_page.tsx';
 
 // test comment
 function getBackendUrl() {
@@ -35,6 +37,9 @@ app.use('/static/*', serveStatic({
   }
 
 }));
+
+// Mount the providers app under the /providers route
+app.route('/providers', providersApp);
 
 
 
@@ -144,7 +149,7 @@ app.get('/', (c) => {
                 <!-- Providers list section - will be populated dynamically -->
                 <div class="mt-6">
                   <h3 class="px-2 text-sm font-medium text-gray-500 dark:text-gray-400 sidebar-label">Providers</h3>
-                  <ul id="providers-list" class="mt-2 space-y-1">
+                  <ul id="sidebar-providers-list" class="mt-2 space-y-1">
                     <li>
                       <a href="#" class="flex items-center p-2 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group">
                         <span class="sidebar-label">OpenAI</span>
@@ -215,6 +220,8 @@ app.get('/', (c) => {
     </html>
   `);
 });
+
+
 
 // API routes proxy to backend
 app.get('/api/*', async (c) => {
@@ -304,6 +311,165 @@ app.post('/api/chat', async (c) => {
   } catch (error) {
     console.error('Error in chat API:', error);
     return c.json({ error: "Chat service temporarily unavailable", response: "Sorry, there was an error communicating with the AI service." }, 503);
+  }
+});
+
+// CRUD endpoints for providers
+
+// GET all providers
+app.get('/api/providers', async (c) => {
+  try {
+    const backendUrl = getBackendUrl();
+    const url = new URL(c.req.url);
+    const backendResponse = await fetch(`${backendUrl}/api/providers`);
+
+    if (!backendResponse.ok) {
+      console.warn(`Providers request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Providers service not available" }, 503);
+    }
+
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error in providers API:', error);
+    return c.json({ error: "Providers service temporarily unavailable" }, 503);
+  }
+});
+
+// GET a specific provider
+app.get('/api/providers/:id', async (c) => {
+  try {
+    const backendUrl = getBackendUrl();
+    const { id } = c.req.param();
+    const backendResponse = await fetch(`${backendUrl}/api/providers/${id}`);
+
+    if (!backendResponse.ok) {
+      if (backendResponse.status === 404) {
+        return c.json({ error: "Provider not found" }, 404);
+      }
+      console.warn(`Get provider request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Provider service not available" }, 503);
+    }
+
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error in get provider API:', error);
+    return c.json({ error: "Provider service temporarily unavailable" }, 503);
+  }
+});
+
+// POST to create a new provider
+app.post('/api/providers', async (c) => {
+  try {
+    const backendUrl = getBackendUrl();
+    const body = await c.req.json();
+
+    const backendResponse = await fetch(`${backendUrl}/api/providers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!backendResponse.ok) {
+      console.warn(`Create provider request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Failed to create provider" }, backendResponse.status);
+    }
+
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error in create provider API:', error);
+    return c.json({ error: "Failed to create provider" }, 500);
+  }
+});
+
+// PUT to update a provider
+app.put('/api/providers/:id', async (c) => {
+  try {
+    const backendUrl = getBackendUrl();
+    const { id } = c.req.param();
+    const body = await c.req.json();
+
+    const backendResponse = await fetch(`${backendUrl}/api/providers/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!backendResponse.ok) {
+      if (backendResponse.status === 404) {
+        return c.json({ error: "Provider not found" }, 404);
+      }
+      console.warn(`Update provider request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Failed to update provider" }, backendResponse.status);
+    }
+
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error in update provider API:', error);
+    return c.json({ error: "Failed to update provider" }, 500);
+  }
+});
+
+// PUT to toggle provider status
+app.put('/api/providers/:id/toggle', async (c) => {
+  try {
+    const backendUrl = getBackendUrl();
+    const { id } = c.req.param();
+    const body = await c.req.json();
+
+    const backendResponse = await fetch(`${backendUrl}/api/providers/${id}/toggle`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!backendResponse.ok) {
+      if (backendResponse.status === 404) {
+        return c.json({ error: "Provider not found" }, 404);
+      }
+      console.warn(`Toggle provider request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Failed to toggle provider" }, backendResponse.status);
+    }
+
+    const data = await backendResponse.json();
+    return c.json(data);
+  } catch (error) {
+    console.error('Error in toggle provider API:', error);
+    return c.json({ error: "Failed to toggle provider" }, 500);
+  }
+});
+
+// DELETE a provider
+app.delete('/api/providers/:id', async (c) => {
+  try {
+    const backendUrl = getBackendUrl();
+    const { id } = c.req.param();
+
+    const backendResponse = await fetch(`${backendUrl}/api/providers/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (!backendResponse.ok) {
+      if (backendResponse.status === 404) {
+        return c.json({ error: "Provider not found" }, 404);
+      }
+      console.warn(`Delete provider request failed: ${backendResponse.status} ${backendResponse.statusText}`);
+      return c.json({ error: "Failed to delete provider" }, backendResponse.status);
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Error in delete provider API:', error);
+    return c.json({ error: "Failed to delete provider" }, 500);
   }
 });
 
@@ -544,7 +710,7 @@ const Sidebar = () => {
                 children: 'Providers'
               }),
               jsx('ul', {
-                id: "providers-list",
+                id: "sidebar-providers-list",
                 class: "mt-2 space-y-1",
                 children: [
                   jsx('li', {

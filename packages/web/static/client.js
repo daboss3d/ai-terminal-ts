@@ -1,4 +1,4 @@
-// src/client.tsx
+// src/client/client.tsx
 var sidebarToggle = document.getElementById("sidebar-toggle");
 var sidebarCollapse = document.getElementById("sidebar-collapse");
 var sidebar = document.getElementById("sidebar");

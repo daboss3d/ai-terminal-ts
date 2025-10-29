@@ -9,4 +9,4 @@ const server = Bun.serve({
   fetch: app.fetch,
 });
 
-console.log(`Server is running on http://localhost:${port}`);
+console.log(`WEB Server is running on http://localhost:${port}`);
