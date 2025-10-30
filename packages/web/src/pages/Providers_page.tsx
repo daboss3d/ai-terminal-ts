@@ -7,6 +7,8 @@ import type { FC } from "hono/jsx";
 
 import type { Provider } from '@lib/providers.js';
 import { MainLayout } from '../layouts/MainLayout.js';
+import { Icon_edit, Icon_delete } from "../components/Icons.ts";
+
 
 // Function to get backend URL
 function getBackendUrl() {
@@ -64,7 +66,7 @@ const Top: FC<{ messages: string[] }> = (props: {
   )
 }
 
-providersApp.get('/', (c) => {
+providersApp.get('/test', (c) => {
   const messages = ['Good Morning', 'Good Evening', 'Good Night']
   return c.html(<Top messages={messages} />)
 })
@@ -72,7 +74,7 @@ providersApp.get('/', (c) => {
 
 
 // Providers page route
-providersApp.get('/test', async (c) => {
+providersApp.get('/', async (c) => {
   const providers = await getProviders();
 
   return c.html(<ProvidersPageTest providers={providers} />)
@@ -82,18 +84,34 @@ providersApp.get('/test', async (c) => {
 const ProviderRow: FC<{ provider: Provider }> = (props: { provider: Provider }) => {
 
   return (
-    <div class="text-sm font-medium text-gray-900 dark:text-white" provider-id={props.provider.id}>
-      <div>{props.provider.name}</div>
-      <div class="text-xs font-normal text-gray-500 dark:text-gray-400">{props.provider.name}</div>
-      <div class="background-grey-500 mt-2 flex h-20 w-20 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700">
-        <svg class="h-16 w-16 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.0" stroke="currentColor" aria-hidden="true" preserveAspectRatio="xMidYMid meet"
-          path d="MM19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.874-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 01M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.874-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z18 0z">
-        </svg>
+    <div>
+      <div className="flex items-center gap-4 p-2 item-name hover:bg-gray-100 rounded cursor-pointer">
+        <div className="min-w-[200px] font-medium">{props.provider.name}</div>
+        <div className="flex-1">{props.provider.name}</div>
+        <div className="flex-1">{props.provider.name}</div>
 
+        <div className="w-12 text-right text-gray-500">28</div>
+        <div class="flex-2 w-2 h-8 mr-8 text-primary">{Icon_edit} </div>
+
+        <div className="w-12 text-right text-gray-500">28</div>
+
+        <div class="flex-2 w-2 h-8 mr-8 text-primary">{Icon_delete} </div>
+
+        <button
+          class="action-btn mx-4 px-4 py-2 h-10 rounded-xl bg-red-500/50 button-2"
+          data-provider-id={props.provider.id}
+          data-action="delete"
+          title="Delete Provider"
+          onClick={() => {
+            console.log("Button clicked", props.provider.id);
+            window.deleteProvider(props.provider.id);
+          }}
+        >
+          {Icon_delete}
+        </button>
 
       </div>
-
-    </div>
+    </div >
   )
 }
 
@@ -103,9 +121,10 @@ const ProvidersPage: FC<{ providers: Provider[] }> = (props: { providers: Provid
 
   return (
     <div class="p-6">
-      <div class="max-w-7xl mx-auto">
-        <div class="flex items-center justify-between mb-6 gap-4">
-          <h1 class="text-3xl font-bold text-accent-theme">Providers {providerCount} </h1>
+      <h1 class="text-3xl font-bold color-accent">Providers: {providerCount} </h1>
+
+      <div class="">
+        <div class="">
           {props.providers.map((provider) => (
             <ProviderRow provider={provider} />
           ))}
@@ -121,17 +140,27 @@ const ProvidersPage: FC<{ providers: Provider[] }> = (props: { providers: Provid
 const ProvidersPageTest: FC<{ providers: Provider[] }> = (props: { providers: Provider[] }) => {
   const providerCount = props.providers.length;
 
+  const scripts = [
+    '<script src="/static/theme.js" defer></script>',
+    '<script src="https://cdn.tailwindcss.com"></script>',
+    '<script src="/static/providers-client.js" defer></script>'
+  ];
+
   return (
     <MainLayout
-      scripts={<script src="https://cdn.tailwindcss.com"></script> as string}
+      scripts={scripts.join('\n')}
     >
-      {props.providers.map((provider) => (
-        <ProviderRow provider={provider} />
-      ))}
+      <div className="bg-grey-200 color-accent">Total Providers: {providerCount}</div>
+      <div>
+        {props.providers.map((provider) => (
+          <ProviderRow provider={provider} />
+        ))}
+      </div>
 
       <div>--------------------------------------------</div>
       <ProvidersPage providers={props.providers} />
-    </MainLayout>
+      <div class="w-2 h-5 mr-8 text-primary">${Icon_edit}</div>
+    </MainLayout >
   )
 }
 
