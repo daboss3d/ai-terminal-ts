@@ -3,7 +3,7 @@ function deleteProvider(id) {
   console.log("Deleting provider with id:", id);
 }
 function editProvider(id) {
-  console.log("editing provider with id:", id);
+  console.log("Editing provider with id:", id);
 }
 window.deleteProvider = deleteProvider;
 window.editProvider = editProvider;
@@ -18,7 +18,7 @@ document.addEventListener("click", (e) => {
   const id = btn.dataset.providerId;
   switch (action) {
     case "delete":
-      return window.deleteProvider(id);
+      return window.openModal("Delete Provider", `Are you sure you want to delete provider "${id}" ?`, () => window.deleteProvider(id));
     case "edit":
       return window.editProvider(id);
     default:

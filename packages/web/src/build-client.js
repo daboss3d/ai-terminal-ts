@@ -8,9 +8,18 @@ const path = require('path');
  * Usage:
  *   BUILD_MINIFY=true node build-client.js  // For minified build
  *   BUILD_MINIFY=false node build-client.js // For non-minified build (default)
+ *   node build-client.js --watch            // Watch for file changes and rebuild automatically
  */
 const clientDir = path.join(__dirname, 'client');
 const staticDir = path.join(__dirname, '..', 'static');
+
+// Check if we're in watch mode
+const watchMode = process.argv.includes('--watch') || process.argv.includes('-w');
+
+console.log(`Client Directory: ${clientDir}`);
+console.log(`Static Directory: ${staticDir}`);
+console.log(`Watch Mode: ${watchMode}`);
+console.log(`Build Minify: ${process.env.BUILD_MINIFY === 'true' ? 'Enabled' : 'Disabled'}`);
 
 // Ensure static directory exists
 if (!fs.existsSync(staticDir)) {
@@ -30,7 +39,8 @@ function getTsFiles(dir) {
     if (stat.isDirectory()) {
       // Recursively get files from subdirectories
       tsFiles = tsFiles.concat(getTsFiles(filePath));
-    } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+    } else if (file.endsWith('.ts') || file.endsWith('.tsx')
+      || file.endsWith('.js')) {
       // Only include .ts and .tsx files
       tsFiles.push(filePath);
     }
@@ -124,10 +134,53 @@ async function buildAll() {
   }
 }
 
-// Run the build function
-buildAll()
-  .then(() => console.log('Build completed successfully'))
-  .catch(err => {
-    console.error('Build failed:', err);
-    process.exit(1);
+// Watch for file changes and rebuild automatically
+function watchFiles() {
+  console.log(`Watching for changes in ${clientDir}...`);
+
+  // Watch the entire client directory recursively
+  const watcher = fs.watch(clientDir, { recursive: true }, (eventType, filename) => {
+
+    if (filename && (filename.endsWith('.ts') || filename.endsWith('.tsx') || filename.endsWith('.js'))) {
+      const fullPath = path.join(clientDir, filename);
+      console.log(`\nFile changed: ${fullPath}`);
+
+      // Rebuild the specific file that changed
+      buildFile(fullPath).then(() => {
+        console.log('Rebuild completed successfully');
+      }).catch(error => {
+        console.error('Rebuild failed:', error);
+      });
+    }
   });
+
+  // Keep the process running
+  process.on('SIGINT', () => {
+    console.log('\nStopping file watcher...');
+    watcher.close();
+    process.exit(0);
+  });
+
+  console.log('Press Ctrl+C to stop watching.');
+}
+
+// Run the build function
+if (watchMode) {
+  console.log('Starting in watch mode...');
+  buildAll()
+    .then(() => {
+      console.log('Initial build completed, starting watch mode...');
+      watchFiles();
+    })
+    .catch(err => {
+      console.error('Initial build failed:', err);
+      process.exit(1);
+    });
+} else {
+  buildAll()
+    .then(() => console.log('Build completed successfully'))
+    .catch(err => {
+      console.error('Build failed:', err);
+      process.exit(1);
+    });
+}

@@ -5,14 +5,19 @@ declare global {
   }
 }
 
-
 function deleteProvider(id: string) {
 
   console.log("Deleting provider with id:", id);
+  //  window.openModal(
+  //    "Delete Provider",
+  //    `Are you sure you want to delete provider #${id}?`,
+  //    () => deleteProviderBackend(id)
+  //  );
+
 }
 function editProvider(id: string) {
 
-  console.log("editing provider with id:", id);
+  console.log("Editing provider with id:", id);
 }
 
 
@@ -37,7 +42,14 @@ document.addEventListener("click", (e) => {
 
   switch (action) {
     case "delete":
-      return window.deleteProvider(id);
+      //      return window.deleteProvider(id);
+      return window.openModal(
+        "Delete Provider",
+        `Are you sure you want to delete provider "${id}" ?`,
+        () => window.deleteProvider(id)
+      );
+
+
 
     case "edit":
       return window.editProvider(id);
@@ -47,9 +59,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-function deleteProviderById(id: string) {
 
-  //  const providerId = (document.getElementById("provider-id") as HTMLInputElement).value;
-  console.log("Deleting provider ...");
-
-}

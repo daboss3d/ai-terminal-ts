@@ -25,7 +25,7 @@ app.get('/', (c) => {
   return c.text('Hello Hono!')
 })
 
-const port = process.env.PORT ? parseInt(process.env.PORT) : 3002;
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
 const server = serve({ ...app, port }, (info) => {
   console.log(`Server AI is running at http://localhost:${info.port}`)

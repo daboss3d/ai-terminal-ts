@@ -5,9 +5,11 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "bun run dev:web & bun run dev:server & bun run dev:build:css",
+    "dev:build:css": "cd packages/web/src && bun run dev:build:css",
     "dev:server": "bun run packages/server/src/index.ts",
     "dev:cli": "bun run packages/cli/src/index.ts",
-    "dev:web": "bun run packages/web/src/server.ts",
+    "dev:web": "cd  packages/web/src && bun run dev",
     "dev:start": "bun run dev:server & bun run dev:web",
     "dev:stop": "pkill -f 'bun run src/server.ts' ",
     "build:client": "node packages/web/src/build-client.js"

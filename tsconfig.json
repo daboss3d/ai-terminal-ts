@@ -2,12 +2,16 @@
   "compilerOptions": {
     // Environment setup & latest features
     "lib": [
-      "ESNext"
+      "ESNext",
+      "dom"
     ],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
     "jsx": "react-jsx",
+    //"jsxFragmentFactory": "Fragment",
+    "jsxImportSource": "hono/jsx",
+    //"jsxFactory": "jsx",
     "allowJs": true,
     "baseUrl": ".",
     "paths": {

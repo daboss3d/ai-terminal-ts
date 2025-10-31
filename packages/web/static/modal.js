@@ -1,0 +1,26 @@
+// src/client/modal.js
+var modalOverlay = document.getElementById("modal-overlay");
+var modalBox = document.getElementById("modal-box");
+var modalTitle = document.getElementById("modal-title");
+var modalMessage = document.getElementById("modal-message");
+var modalConfirm = document.getElementById("modal-confirm");
+var modalCancel = document.getElementById("modal-cancel");
+modalCancel?.addEventListener("click", closeModal);
+function closeModal() {
+  modalBox.classList.remove("opacity-100", "scale-100");
+  modalBox.classList.add("opacity-0", "scale-95");
+  setTimeout(() => modalOverlay.classList.add("hidden"), 150);
+}
+window.openModal = (title, message, onConfirm) => {
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+  modalOverlay.classList.remove("hidden");
+  setTimeout(() => {
+    modalBox.classList.add("opacity-100", "scale-100");
+  }, 10);
+  modalConfirm.onclick = () => {
+    closeModal();
+    onConfirm && onConfirm();
+  };
+};
+window.closeModal = closeModal;

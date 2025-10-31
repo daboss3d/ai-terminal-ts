@@ -1,5 +1,6 @@
 /* Custom styles for AI Terminal interface */
 /* These styles complement the Tailwind CSS classes in the HTML */
+@import "tailwindcss";
 
 /* Main layout styles */
 
@@ -9,6 +10,10 @@
   --foreground: oklch(0.145 0 0);
   --sidebar-width: 240px;
   --text-primary: oklch(0.215 0 0);
+  --primary: oklch(0.72 0.11 178);
+    --text-secondary: oklch(91.562% 0.00606 223.46);
+  --secondary: oklch(91.562% 0.00606 223.46);
+
 
 }
 .dark {
@@ -18,13 +23,23 @@
   --foreground: oklch(0.985 0 0);
   --text-primary: oklch(0.85 0 0);
   --text-accent: oklch(0.97 0 0);
-  --accent: oklch(0.97 0.2 0);
-
+  --accent: oklch(0.97 0.2 0.2);
+  --primary: oklch(94.891% 0.006 223.46);
+  --text-secondary: oklch(91.562% 0.00606 223.46);
+  --secondary: oklch(91.562% 0.00606 223.46);
 
 }
 
 dark {
   color-scheme: dark;
+}
+
+@theme {
+  --color-mint-500: oklch(0.72 0.11 178);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+
+
 }
 
 
@@ -37,6 +52,11 @@ body {
 .color-accent{
   color: var(--text-accent);
 }
+
+.test-bg{
+  background-color: var(--background-10);
+}
+
 
 /* Sidebar styles */
 .sidebar {

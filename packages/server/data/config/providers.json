@@ -22,11 +22,11 @@
     "enabled": false
   },
   {
-    "id": "test",
-    "name": "gemma 4B local",
-    "model": "ai/gemma3:latest",
+    "id": "server-coder",
+    "name": "deepseek server-ai",
+    "model": "qwen3-coder:30b",
     "apiKey": "",
-    "baseUrl": "http://127.0.0.1:12434/engines/v1",
+    "baseUrl": "http://10.1.1.62:11434",
     "enabled": true
   }
 ]
